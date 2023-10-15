@@ -25,6 +25,7 @@ public class TaskController {
 
     @Autowired
     private ITaskRepository taskRepository;
+
     // criando a tarefa do usuário
     @PostMapping("/")
     public ResponseEntity create(@RequestBody TaskModel taskModel, HttpServletRequest request) {
@@ -37,12 +38,12 @@ public class TaskController {
         // se a data atual for maior que a data de início ou data de término - erro
         if (currentDate.isAfter(taskModel.getStartAt()) || currentDate.isAfter(taskModel.getEndAt())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body("A data de início / data de término deve ser maior que a data atual");
+                    .body("A data de início / data de término deve ser maior que a data atual");
         }
         // se a data de início for maior que a data de término - erro
         if (taskModel.getStartAt().isAfter(taskModel.getEndAt())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body("A data de início deve ser menor que a data de término");
+                    .body("A data de início deve ser menor que a data de término");
         }
 
         var task = this.taskRepository.save(taskModel);
@@ -59,15 +60,28 @@ public class TaskController {
 
     // update de tarefa - utlizando o ID da tarefa na requisição
     @PutMapping("/{id}")
-    public TaskModel update(@RequestBody TaskModel taskModel, @PathVariable UUID id, HttpServletRequest request){
+    public ResponseEntity update(@RequestBody TaskModel taskModel, @PathVariable UUID id, HttpServletRequest request) {
         var idUser = request.getAttribute("idUser");
         System.out.println("IDUSER" + idUser);
 
-        // buscar no DB a task e atualizar 
+        // buscar no DB a task e atualizar
         var task = this.taskRepository.findById(id).orElse(null);
+
+        // validando se a task existe
+        if(task == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Tarefa não encontrada");
+        }
+
+        // verificar se o usuário logado é o dono da tarefa
+        if (!task.getIdUser().equals(idUser)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Usuário não autorizado!");
+        }
 
         Utils.copyNonNullProperties(taskModel, task);
 
-        return this.taskRepository.save(task);
+        var taskUpdated = this.taskRepository.save(task);
+        return ResponseEntity.ok().body(taskUpdated);
     }
 }
